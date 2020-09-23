@@ -55,7 +55,7 @@ public class CustomerInformation {
 	private String city;
 
 	@Column(name = "zip_code")
-	@Size(min=3, max=24)
+//	@Size(min=3, max=24)
 	private Integer zipCode;
 
 	@Column(name = "country")
