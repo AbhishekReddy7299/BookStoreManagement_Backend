@@ -1,0 +1,145 @@
+package com.obsm.bookstore.service;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.obsm.bookstore.exception.BookNotFoundException;
+import com.obsm.bookstore.exception.InvalidQuantityException;
+import com.obsm.bookstore.exception.RecordAlreadyPresentException;
+import com.obsm.bookstore.exception.RecordNotFoundException;
+import com.obsm.bookstore.model.BookInformation;
+import com.obsm.bookstore.model.CartInformation;
+import com.obsm.bookstore.model.OrderInformation;
+import com.obsm.bookstore.repository.BookStoreDao;
+import com.obsm.bookstore.repository.CustomerDao;
+import com.obsm.bookstore.repository.OrderDao;
+import com.obsm.bookstore.utils.BookStoreConstants;
+
+@Service
+@Transactional
+public class BookStoreServiceImpl implements BookStoreService{
+
+	@Autowired
+	BookStoreDao dao;
+	
+	@Autowired
+	OrderDao orderDao;
+	
+	@Autowired
+	CustomerDao customerDao;
+
+	@Override
+	public List<CartInformation> viewCartByCustomerId(int customerId) {
+		List<CartInformation> reviewList=dao.viewCartByCustomerId(customerId);
+		return reviewList;
+	}
+	
+	
+	@Override
+	public String addBookToCart(int bookId, int customerId, String status) throws BookNotFoundException{
+		BookInformation book = dao.getBook(bookId);
+		if(book == null) {
+			throw new BookNotFoundException(BookStoreConstants.BOOK_ID_EXCEPTION);
+		}
+		else {
+		CartInformation cartInfo = new CartInformation();
+		cartInfo.setBook(book);
+		cartInfo.setQuantity(1);
+		cartInfo.setCustomerId(customerId);
+		cartInfo.setStatus(status);
+		return dao.addBookToCart(cartInfo);
+		}
+	}
+	
+	@Override
+	public List<BookInformation> viewBooks() throws RecordNotFoundException {
+		
+		List<BookInformation> blist = dao.viewBooks();
+		if(blist.isEmpty())
+			throw new RecordNotFoundException();
+		//blist.sort((c1,c2)->c1.getBookId().compareTo(c2.getBookId()));
+		return blist;
+	}
+	
+	@Override
+	public boolean removeCartItem(int cartId) {
+		CartInformation cart=dao.viewCartByCartId(cartId);
+		return dao.removeCartItem(cart);
+	}
+	
+	@Override
+	public boolean clearCartByCustomerId(int customerId) {
+		List<CartInformation> carts=dao.viewCartByCustomerId(customerId);
+		int i=0;
+		while(i<carts.size()) {
+			dao.removeCartItem(carts.get(i));
+			i++;
+		}
+		return true;
+	}
+
+	public String updateCart(int cartId,int quantity) throws InvalidQuantityException {
+		CartInformation cart = dao.viewCartByCartId(cartId);
+		if(quantity<0) {
+			throw new InvalidQuantityException();
+		}
+		else
+		{
+			float updatedSubtotal = quantity * cart.getBook().getPrice(); 
+			cart.setQuantity(quantity);
+			cart.setSubTotal(updatedSubtotal);
+			dao.updateCartQuantity(cart);
+		}
+		return "Cart Updated";		
+		
+	}
+	
+	@Override
+	public OrderInformation addOrder(OrderInformation order) {
+		Optional<OrderInformation> newOrder = orderDao.findById(order.getOrderId());
+		if(newOrder.isPresent()) {
+			throw new RecordAlreadyPresentException();
+		}
+		else {
+			orderDao.save(order);
+			return order;
+		}
+	}
+
+	@Override
+	public OrderInformation viewOrderById(int id) {
+		Optional<OrderInformation> order = orderDao.findById(id);
+		if(!order.isPresent()) {
+			throw new RecordNotFoundException();
+		}
+		else
+			return order.get();
+	}
+
+
+	@Override
+	public Iterable<OrderInformation> listAllOrder() {
+		Iterable<OrderInformation> list = orderDao.findAll();
+		if(list==null) {
+			throw new RecordNotFoundException();
+		}
+		else
+			return list;
+	}
+	
+	@Override
+	public List<OrderInformation> viewOrderByCustomerId(int customerId) {
+		List<OrderInformation> list = dao.viewOrderByCustomerId(customerId);
+		if(list==null) {
+			throw new RecordNotFoundException();
+		}
+		else
+			return list;
+	}
+
+	
+}
